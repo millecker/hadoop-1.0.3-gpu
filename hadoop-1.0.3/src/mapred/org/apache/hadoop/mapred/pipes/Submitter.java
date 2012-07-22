@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred.pipes;
 
@@ -25,15 +26,12 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.OptionGroup;
-import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.Parser;
@@ -56,6 +54,7 @@ import org.apache.hadoop.mapred.Partitioner;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.lib.HashPartitioner;
+import org.apache.hadoop.mapred.lib.NLineInputFormat;
 import org.apache.hadoop.mapred.lib.NullOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
@@ -94,6 +93,26 @@ public class Submitter extends Configured implements Tool {
   public static void setExecutable(JobConf conf, String executable) {
     conf.set("hadoop.pipes.executable", executable);
   }
+  
+
+  
+  public static void setCPUExecutable(JobConf conf, String executable) {
+   conf.set("hadoop.pipes.executable", executable);
+  }
+	  
+  public static String getCPUExecutable(JobConf conf) {
+	return conf.get("hadoop.pipes.executable");
+  }
+		
+  public static void setGPUExecutable(JobConf conf, String executable) {
+	conf.set("hadoop.accels.gpu.executable", executable);
+  }
+		
+  public static String getGPUExecutable(JobConf conf) {
+	  /** FIXME **/
+	  return conf.get("hadoop.accels.gpu.executable");
+  }
+		
 
   /**
    * Set whether the job is using a Java RecordReader.
@@ -283,6 +302,7 @@ public class Submitter extends Configured implements Tool {
     setIfUnset(conf, "mapred.output.key.class", textClassname);
     setIfUnset(conf, "mapred.output.value.class", textClassname);
     
+	LOG.info("nonjava: isJavaRecordReader = " + getIsJavaRecordReader(conf));
     // Use PipesNonJavaInputFormat if necessary to handle progress reporting
     // from C++ RecordReaders ...
     if (!getIsJavaRecordReader(conf) && !getIsJavaMapper(conf)) {
@@ -291,13 +311,19 @@ public class Submitter extends Configured implements Tool {
       conf.setInputFormat(PipesNonJavaInputFormat.class);
     }
     
-    String exec = getExecutable(conf);
-    if (exec == null) {
-      throw new IllegalArgumentException("No application program defined.");
+    conf.setInputFormat(NLineInputFormat.class);
+    
+    //String exec = getExecutable(conf);
+    String cpubin = getCPUExecutable(conf);
+    String gpubin = getGPUExecutable(conf);
+    //if (exec == null) {
+    if (cpubin == null || gpubin == null) {
+    	throw new IllegalArgumentException("No application program defined.");
     }
     // add default debug script only when executable is expressed as
     // <path>#<executable>
-    if (exec.contains("#")) {
+    //if (exec.contains("#")) {
+    if (cpubin.contains("#") || gpubin.contains("#")) {    	
       DistributedCache.createSymlink(conf);
       // set default gdb commands for map and reduce task 
       String defScript = "$HADOOP_HOME/src/c++/pipes/debug/pipes-default-script";
@@ -306,18 +332,27 @@ public class Submitter extends Configured implements Tool {
     }
     URI[] fileCache = DistributedCache.getCacheFiles(conf);
     if (fileCache == null) {
-      fileCache = new URI[1];
+      fileCache = new URI[2];
     } else {
-      URI[] tmp = new URI[fileCache.length+1];
-      System.arraycopy(fileCache, 0, tmp, 1, fileCache.length);
+      URI[] tmp = new URI[fileCache.length+2];
+      System.arraycopy(fileCache, 0, tmp, 2, fileCache.length);
       fileCache = tmp;
     }
     try {
-      fileCache[0] = new URI(exec);
+      //fileCache[0] = new URI(exec);
+      fileCache[0] = new URI(cpubin);
     } catch (URISyntaxException e) {
-      IOException ie = new IOException("Problem parsing execable URI " + exec);
+      //IOException ie = new IOException("Problem parsing execable URI " + exec);
+      IOException ie = new IOException("Problem parsing execable URI " + cpubin);
       ie.initCause(e);
       throw ie;
+    }
+    try {
+    	fileCache[1] = new URI(gpubin);
+    } catch (URISyntaxException e) {
+    	IOException ie = new IOException("Problem parsing execable URI " + gpubin);
+    	ie.initCause(e);
+    	throw ie;
     }
     DistributedCache.setCacheFiles(fileCache, conf);
   }
@@ -396,6 +431,8 @@ public class Submitter extends Configured implements Tool {
     cli.addOption("jobconf", false, 
         "\"n1=v1,n2=v2,..\" (Deprecated) Optional. Add or override a JobConf property.",
         "key=val");
+    cli.addOption("cpubin", false, "URI to application cpu executable", "class");
+    cli.addOption("gpubin", false, "URI to application gpu executable", "class");
     Parser parser = cli.createParser();
     try {
       
@@ -458,6 +495,15 @@ public class Submitter extends Configured implements Tool {
           job.set(keyValSplit[0], keyValSplit[1]);
         }
       }
+      
+      if (results.hasOption("cpubin")) {
+    	  setCPUExecutable(job, (String) results.getOptionValue("cpubin"));
+      }
+     
+      if (results.hasOption("gpubin")) {
+    	  setGPUExecutable(job, (String) results.getOptionValue("gpubin"));
+      }
+      
       // if they gave us a jar file, include it into the class path
       String jarFile = job.getJar();
       if (jarFile != null) {

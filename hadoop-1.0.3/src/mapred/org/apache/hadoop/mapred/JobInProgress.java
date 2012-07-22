@@ -15,9 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
+
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,7 +39,6 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Vector;
-import java.net.UnknownHostException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -47,7 +49,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.CleanupQueue.PathDeletionContext;
 import org.apache.hadoop.mapred.Counters.CountersExceededException;
-import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.hadoop.mapred.JobHistory.Values;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobSubmissionFiles;
@@ -57,8 +58,8 @@ import org.apache.hadoop.mapreduce.security.token.DelegationTokenRenewal;
 import org.apache.hadoop.mapreduce.security.token.JobTokenIdentifier;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 import org.apache.hadoop.mapreduce.split.JobSplit;
-import org.apache.hadoop.mapreduce.split.SplitMetaInfoReader;
 import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitMetaInfo;
+import org.apache.hadoop.mapreduce.split.SplitMetaInfoReader;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
@@ -110,9 +111,13 @@ public class JobInProgress {
   int runningMapTasks = 0;
   int runningReduceTasks = 0;
   int finishedMapTasks = 0;
+  int finishedCPUMapTasks = 0;
+  int finishedGPUMapTasks = 0;
   int finishedReduceTasks = 0;
   int failedMapTasks = 0; 
   int failedReduceTasks = 0;
+//int meanCPUTaskTime = 0;
+//int meanGPUTaskTime = 0;
   private static long DEFAULT_REDUCE_INPUT_LIMIT = -1L;
   long reduce_input_limit = -1L;
   private static float DEFAULT_COMPLETED_MAPS_PERCENT_FOR_REDUCE_SLOWSTART = 0.05f;
@@ -492,6 +497,128 @@ public class JobInProgress {
     }
   }
 
+  
+  
+  
+//public void setMeanCPUTaskTime(){
+//  
+//}
+
+//return mean execution time of already finished map tasks
+  public int getMapTaskMeanTime(){
+	  int totalTime = 0;
+	  int numTask = 0;
+	  TaskReport[] as = null;
+	  try {
+			as = jobtracker.getMapTaskReports(jobId);
+	  } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	  }
+	  for (TaskReport a : as) {
+		  if (a.getFinishTime() != 0) {
+			  totalTime += a.getFinishTime() - a.getStartTime();
+			  numTask++;
+		  }
+	  }
+	  return numTask == 0 ? 0 : totalTime / numTask;
+  }
+
+  public int getCPUMapTaskMeanTime(){
+	  int totalTime = 0;
+	  int numTask = 0;
+	  TaskReport[] as = null;
+	  try {
+			as = jobtracker.getMapTaskReports(jobId);
+	  } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	  }
+	  for (TaskReport a : as) {
+		  if (a.getFinishTime() != 0
+				  && jobtracker.getTaskStatus(a.getSuccessfulTaskAttempt()).runOnCPU()) {
+			  totalTime += a.getFinishTime() - a.getStartTime();
+			  numTask++;
+		  }
+	  }
+	  return numTask == 0 ? 0 : totalTime / numTask;
+  }
+
+  public int getGPUMapTaskMeanTime(){
+	  int totalTime = 0;
+	  int numTask = 0;
+	  TaskReport[] as = null;
+	  try {
+			as = jobtracker.getMapTaskReports(jobId);
+	  } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	  }
+	  for (TaskReport a : as) {
+		  if (a.getFinishTime() != 0
+				  && jobtracker.getTaskStatus(a.getSuccessfulTaskAttempt()).runOnGPU()) {				  
+			  totalTime += a.getFinishTime() - a.getStartTime();
+			  numTask++;
+		  }
+	  }
+	  return numTask == 0 ? 0 : totalTime / numTask;
+  }
+
+  public Vector<Long> getMapTaskTimes(){
+	  Vector<Long>  vec = new Vector<Long> ();
+	  TaskReport[] as = null;
+	  try {
+			as = jobtracker.getMapTaskReports(jobId);
+	  } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	  }
+	  for (TaskReport a : as) {
+		  if (a.getFinishTime() != 0) {
+			  vec.addElement(a.getFinishTime() - a.getStartTime());			  
+		  }
+	  }
+	  return vec;
+  }
+
+  public Vector<Long> getCPUMapTaskTimes(){
+	  Vector<Long> vec = new Vector<Long>();
+	  TaskReport[] as = null;
+	  try {
+			as = jobtracker.getMapTaskReports(jobId);
+	  } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	  }
+	  for (TaskReport a : as) {
+		  if (a.getFinishTime() != 0
+				  && jobtracker.getTaskStatus(a.getSuccessfulTaskAttempt()).runOnCPU()) {
+			  vec.addElement(a.getFinishTime() - a.getStartTime());			  
+		  }
+	  }
+	  return vec;
+  }
+
+  public Vector<Long> getGPUMapTaskTimes(){
+	  Vector<Long> vec = new Vector<Long>();
+	  TaskReport[] as = null;
+	  try {
+			as = jobtracker.getMapTaskReports(jobId);
+	  } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	  }
+	  for (TaskReport a : as) {
+		  if (a.getFinishTime() != 0
+				  && jobtracker.getTaskStatus(a.getSuccessfulTaskAttempt()).runOnGPU()) {
+			  vec.addElement(a.getFinishTime() - a.getStartTime());			  
+		  }
+	  }
+	  return vec;
+  }
+
+  
+  
   /**
    * Get the QueueMetrics object associated with this job
    * @return QueueMetrics
@@ -840,6 +967,12 @@ public class JobInProgress {
   }
   public synchronized int finishedMaps() {
     return finishedMapTasks;
+  }
+  public synchronized int finishedCPUMaps() {
+	  return finishedCPUMapTasks;
+  }
+  public synchronized int finishedGPUMaps() {
+	  return finishedGPUMapTasks;
   }
   public int desiredReduces() {
     return numReduceTasks;
@@ -1325,6 +1458,10 @@ public class JobInProgress {
     
     Task result = maps[target].getTaskToRun(tts.getTrackerName());
     if (result != null) {
+      // assign tasks alternately
+      //if (target % 2 == 0) {
+    	result.setRunOnGPU(true);
+      //}
       addRunningTaskToTIP(maps[target], result.getTaskID(), tts, true);
       resetSchedulingOpportunities();
     }
@@ -2639,6 +2776,11 @@ public class JobInProgress {
         speculativeMapTasks -= (oldNumAttempts - newNumAttempts);
       }
       finishedMapTasks += 1;
+      if(status.runOnCPU()) {
+    	  finishedCPUMapTasks += 1;
+      } else {
+    	  finishedGPUMapTasks += 1;
+      }
       metrics.completeMap(taskid);
       this.queueMetrics.completeMap(taskid);
       // remove the completed map from the resp running caches
@@ -3011,6 +3153,8 @@ public class JobInProgress {
         // racks/switches, if the input split blocks were present there too)
         failMap(tip);
         finishedMapTasks -= 1;
+        finishedCPUMapTasks -= 1;
+        finishedGPUMapTasks -= 1;
       }
     }
         

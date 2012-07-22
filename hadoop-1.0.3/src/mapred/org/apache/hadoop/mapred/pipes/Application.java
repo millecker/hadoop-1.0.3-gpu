@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred.pipes;
 
@@ -71,6 +72,8 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
   static final boolean WINDOWS
   = System.getProperty("os.name").startsWith("Windows");
 
+  
+  
   /**
    * Start the child process to handle the task for us.
    * @param conf the task's configuration
@@ -79,6 +82,48 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
    * @param reporter the reporter for the task
    * @param outputKeyClass the class of the output keys
    * @param outputValueClass the class of the output values
+   * @throws InterruptedException 
+   * @throws IOException 
+   */
+  Application(JobConf conf, 
+          RecordReader<FloatWritable, NullWritable> recordReader, 
+          OutputCollector<K2,V2> output, Reporter reporter,
+          Class<? extends K2> outputKeyClass,
+          Class<? extends V2> outputValueClass) throws IOException, InterruptedException {
+	  this(conf, recordReader, output, reporter, outputKeyClass, outputValueClass, false);
+  }
+  
+  /**
+   * Start the child process to handle the task for us.
+   * @param conf the task's configuration
+   * @param recordReader the fake record reader to update progress with
+   * @param output the collector to send output to
+   * @param reporter the reporter for the task
+   * @param outputKeyClass the class of the output keys
+   * @param outputValueClass the class of the output values
+   * @param runOnGPU 
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  Application(JobConf conf, 
+          RecordReader<FloatWritable, NullWritable> recordReader, 
+          OutputCollector<K2,V2> output, Reporter reporter,
+          Class<? extends K2> outputKeyClass,
+          Class<? extends V2> outputValueClass,
+          boolean runOnGPU
+  ) throws IOException, InterruptedException {
+	  this(conf, recordReader, output, reporter, outputKeyClass, outputValueClass, false, 0);
+  }
+  
+  /**
+   * Start the child process to handle the task for us.
+   * @param conf the task's configuration
+   * @param recordReader the fake record reader to update progress with
+   * @param output the collector to send output to
+   * @param reporter the reporter for the task
+   * @param outputKeyClass the class of the output keys
+   * @param outputValueClass the class of the output values
+   * @param runOnGPU 
    * @throws IOException
    * @throws InterruptedException
    */
@@ -86,7 +131,9 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
               RecordReader<FloatWritable, NullWritable> recordReader, 
               OutputCollector<K2,V2> output, Reporter reporter,
               Class<? extends K2> outputKeyClass,
-              Class<? extends V2> outputValueClass
+              Class<? extends V2> outputValueClass,
+              boolean runOnGPU,
+              int GPUDeviceId
               ) throws IOException, InterruptedException {
     serverSocket = new ServerSocket(0);
     Map<String, String> env = new HashMap<String,String>();
@@ -112,13 +159,18 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
       cmd.add(interpretor);
     }
 
-    String executable = DistributedCache.getLocalCacheFiles(conf)[0].toString();
+    // Check whether the applicaiton will run on GPU
+    int i = runOnGPU ? 1 : 0;
+    String executable = DistributedCache.getLocalCacheFiles(conf)[i].toString();
     if (!new File(executable).canExecute()) {
       // LinuxTaskController sets +x permissions on all distcache files already.
       // In case of DefaultTaskController, set permissions here.
       FileUtil.chmod(executable, "u+x");
     }
     cmd.add(executable);
+//  cmd.add(executable + " " + GPUDeviceId);
+    cmd.add(Integer.toString(GPUDeviceId));
+    
     // wrap the command in a stdout/stderr capture
     TaskAttemptID taskid = TaskAttemptID.forName(conf.get("mapred.task.id"));
     // we are starting map/reduce task of the pipes job. this is not a cleanup
@@ -128,7 +180,8 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
     long logLength = TaskLog.getTaskLogLength(conf);
     cmd = TaskLog.captureOutAndError(null, cmd, stdout, stderr, logLength,
         false);
-
+    System.out.println("cmd: " + cmd);
+    
     process = runClient(cmd, env);
     clientSocket = serverSocket.accept();
     

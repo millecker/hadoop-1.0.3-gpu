@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
@@ -58,6 +59,31 @@ public class MapRunner<K1, V1, K2, V2>
     }
   }
 
+  
+  /*
+  //for multi-GPU
+  public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
+                  Reporter reporter, int GPUDeviceId)
+    throws IOException {
+    try {
+      // allocate key & value instances that are re-used for all entries
+      K1 key = input.createKey();
+      V1 value = input.createValue();
+      
+      while (input.next(key, value)) {
+        // map pair to output
+        mapper.map(key, value, output, reporter);
+        if(incrProcCount) {
+          reporter.incrCounter(SkipBadRecords.COUNTER_GROUP, 
+              SkipBadRecords.COUNTER_MAP_PROCESSED_RECORDS, 1);
+        }
+      }
+    } finally {
+      mapper.close();
+    }
+  }
+  */
+  
   protected Mapper<K1, V1, K2, V2> getMapper() {
     return mapper;
   }

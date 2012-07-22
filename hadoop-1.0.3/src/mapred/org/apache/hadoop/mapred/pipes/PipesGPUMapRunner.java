@@ -35,7 +35,7 @@ import org.apache.hadoop.mapred.SkipBadRecords;
 /**
  * An adaptor to run a C++ mapper.
  */
-class PipesMapRunner<K1 extends WritableComparable, V1 extends Writable,
+public class PipesGPUMapRunner<K1 extends WritableComparable, V1 extends Writable,
     K2 extends WritableComparable, V2 extends Writable>
     extends MapRunner<K1, V1, K2, V2> {
   private JobConf job;
@@ -50,7 +50,7 @@ class PipesMapRunner<K1 extends WritableComparable, V1 extends Writable,
     //records could be different(equal or less) than the no of records input.
     SkipBadRecords.setAutoIncrMapperProcCount(job, false);
   }
-
+  
   /**
    * Run the map task.
    * @param input the set of inputs
@@ -58,11 +58,9 @@ class PipesMapRunner<K1 extends WritableComparable, V1 extends Writable,
    * @param reporter the object to update with status
    */
   @SuppressWarnings("unchecked")
-//  public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
-//                  Reporter reporter) throws IOException {
-  	public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
-  					Reporter reporter, int GPUDeviceId) throws IOException {    
-	Application<K1, V1, K2, V2> application = null;
+  public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
+                  Reporter reporter, int GPUDeviceId) throws IOException {
+    Application<K1, V1, K2, V2> application = null;
     try {
       RecordReader<FloatWritable, NullWritable> fakeInput = 
         (!Submitter.getIsJavaRecordReader(job) && 
@@ -71,7 +69,9 @@ class PipesMapRunner<K1 extends WritableComparable, V1 extends Writable,
       application = new Application<K1, V1, K2, V2>(job, fakeInput, output, 
                                                     reporter,
           (Class<? extends K2>) job.getOutputKeyClass(), 
-          (Class<? extends V2>) job.getOutputValueClass());
+          (Class<? extends V2>) job.getOutputValueClass(),
+          true,           // run on GPU
+          GPUDeviceId); 
     } catch (InterruptedException ie) {
       throw new RuntimeException("interrupted", ie);
     }
@@ -85,12 +85,10 @@ class PipesMapRunner<K1 extends WritableComparable, V1 extends Writable,
         // allocate key & value instances that are re-used for all entries
         K1 key = input.createKey();
         V1 value = input.createValue();
-        System.out.println("input = " + input + ", key = " + key + ", value = " + value);
         downlink.setInputTypes(key.getClass().getName(),
                                value.getClass().getName());
         
         while (input.next(key, value)) {
-          long st = System.currentTimeMillis();
           // map pair to output
           downlink.mapItem(key, value);
           if(skipping) {
@@ -98,13 +96,12 @@ class PipesMapRunner<K1 extends WritableComparable, V1 extends Writable,
             //so that we don't buffer other records surrounding a bad record.
             downlink.flush();
           }
-//        System.out.println("PipesMapRunner.overhead : " + (System.currentTimeMillis() - st));  
         }
         downlink.endOfInput();
       }
       long time = System.currentTimeMillis();
       application.waitForFinish();
-      System.out.println("CPUapplication.waitforfinish : " + (System.currentTimeMillis() - time));
+      System.out.println("GPUapplication.waitforfinish : " + (System.currentTimeMillis() - time));
     } catch (Throwable t) {
       application.abort(t);
     } finally {
