@@ -5,4 +5,8 @@
 
 <configuration>
 
+<property>
+    <name>fs.default.name</name>
+    <value>hdfs://localhost/</value>
+  </property>
 </configuration>
