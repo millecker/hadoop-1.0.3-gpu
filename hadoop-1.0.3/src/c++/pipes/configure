@@ -299,7 +299,9 @@ as_unset=as_fn_unset
 # Set $? to STATUS, without forking.
 as_fn_set_status ()
 {
+if echo $1 | egrep -q '^[0-9]+$'; then
   return $1
+fi
 } # as_fn_set_status
 
 # as_fn_exit STATUS
@@ -309,7 +311,9 @@ as_fn_exit ()
 {
   set +e
   as_fn_set_status $1
+if echo $1 | egrep -q '^[0-9]+$'; then
   exit $1
+fi
 } # as_fn_exit
 
 # as_fn_mkdir_p
