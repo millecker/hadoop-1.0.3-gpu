@@ -387,5 +387,6 @@ if [ "$starting_secure_dn" = "true" ]; then
                                                 org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter "$@"
 else
   # run it
+  #echo "hadoop - $JAVA -Dproc_$COMMAND $JAVA_HEAP_MAX $HADOOP_OPTS -classpath $CLASSPATH $CLASS $@"
   exec "$JAVA" -Dproc_$COMMAND $JAVA_HEAP_MAX $HADOOP_OPTS -classpath "$CLASSPATH" $CLASS "$@"
 fi

@@ -5,8 +5,15 @@
 
 <configuration>
 
-<property>
+  <property>
     <name>dfs.replication</name>
     <value>1</value>
   </property>
+<!--
+  <property>
+    <name>dfs.block.size</name>
+    <value>268435456</value>
+  </property>
+-->
+  
 </configuration>

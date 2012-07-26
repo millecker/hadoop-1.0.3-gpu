@@ -5,8 +5,54 @@
 
 <configuration>
 
-<property>
+  <property>
     <name>mapred.job.tracker</name>
     <value>localhost:8021</value>
   </property>
+  
+ <property>
+  <name>mapred.input.format.class</name>
+  <value>org.apache.hadoop.mapred.lib.NLineInputFormat</value>
+ </property>
+ 
+ <property>
+  <name>mapred.line.input.format.linespermap</name>
+  <value>1</value>
+ </property>
+ 
+ <property>
+  <name>mapred.tasktracker.map.cpu.tasks.maximum</name>
+  <value>3</value>
+ </property>
+ 
+ <property>
+  <name>mapred.tasktracker.map.gpu.tasks.maximum</name>
+  <value>1</value>
+ </property>
+ 
+ <property>
+  <name>mapred.tasktracker.map.tasks.maximum</name>
+  <value>4</value>
+ </property>
+ 
+ <property>
+  <name>mapred.tasktracker.reduce.tasks.maximum</name>
+  <value>1</value>
+ </property>
+ 
+ <property>
+  <name>mapred.reduce.tasks</name>
+  <value>1</value>
+ </property>
+<!--
+ <property>
+  <name>mapred.task.timeout</name>
+  <value>10000000</value>
+ </property>
+-->
+ <property>
+  <name>mapred.jobtracker.map.optionalscheduling</name>
+  <value>true</value>
+ </property>
+  
 </configuration>

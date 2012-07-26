@@ -5,8 +5,14 @@
 
 <configuration>
 
-<property>
+  <property>
     <name>fs.default.name</name>
     <value>hdfs://localhost/</value>
   </property>
+<!--
+  <property>
+    <name>io.file.buffer.size</name>
+    <value>131072</value>
+  </property>
+-->
 </configuration>

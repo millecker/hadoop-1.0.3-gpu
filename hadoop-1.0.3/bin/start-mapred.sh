@@ -29,5 +29,7 @@ fi
 
 # start mapred daemons
 # start jobtracker first to minimize connection errors at startup
+#echo "start_mapred.sh - $bin/hadoop-daemon.sh --config $HADOOP_CONF_DIR start jobtracker"
 "$bin"/hadoop-daemon.sh --config $HADOOP_CONF_DIR start jobtracker
+#echo "start_mapred.sh - $bin/hadoop-daemons.sh --config $HADOOP_CONF_DIR start tasktracker"
 "$bin"/hadoop-daemons.sh --config $HADOOP_CONF_DIR start tasktracker

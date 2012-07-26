@@ -21,6 +21,9 @@ package org.apache.hadoop.mapred;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.mapred.pipes.Submitter;
 import org.apache.hadoop.util.ReflectionUtils;
 
 /** Default {@link MapRunnable} implementation.*/
@@ -29,13 +32,17 @@ public class MapRunner<K1, V1, K2, V2>
   
   private Mapper<K1, V1, K2, V2> mapper;
   private boolean incrProcCount;
-
+  protected static final Log LOG = LogFactory.getLog(MapRunner.class);
+  
   @SuppressWarnings("unchecked")
   public void configure(JobConf job) {
     this.mapper = ReflectionUtils.newInstance(job.getMapperClass(), job);
     //increment processed counter only if skipping feature is enabled
     this.incrProcCount = SkipBadRecords.getMapperMaxSkipRecords(job)>0 && 
       SkipBadRecords.getAutoIncrMapperProcCount(job);
+    
+    LOG.info("DEBUG INFO: MapperClass: " + job.getMapperClass());
+    
   }
 
   public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
@@ -55,7 +62,8 @@ public class MapRunner<K1, V1, K2, V2>
         }
       }
     } finally {
-      mapper.close();
+    	LOG.info("DEBUG INFO: Mapper: " + mapper);
+        mapper.close();
     }
   }
 
