@@ -15,32 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
 
 import java.io.IOException;
-
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Enumeration;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.conf.Configuration;
-
-import org.apache.hadoop.io.*;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.RawComparator;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
-
+import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapred.lib.IdentityMapper;
 import org.apache.hadoop.mapred.lib.IdentityReducer;
-import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapred.lib.KeyFieldBasedComparator;
 import org.apache.hadoop.mapred.lib.KeyFieldBasedPartitioner;
+import org.apache.hadoop.mapred.pipes.PipesGPUMapRunner;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.Tool;
@@ -966,6 +969,16 @@ public class JobConf extends Configuration {
                     MapRunner.class, MapRunnable.class);
   }
   
+  
+  /**
+   * Get the {@link MapRunnable} class for the gpu job.
+   * @return the {@link MapRunnable} class for the gpu job.
+   */
+  public Class<? extends MapRunnable> getGPUMapRunnerClass() {
+  	return getClass("mapred.map.runnner.gpu.class", PipesGPUMapRunner.class, 
+  			        	MapRunnable.class);
+  }
+  
   /**
    * Expert: Set the {@link MapRunnable} class for the job.
    * 
@@ -977,6 +990,17 @@ public class JobConf extends Configuration {
     setClass("mapred.map.runner.class", theClass, MapRunnable.class);
   }
 
+  /**
+   * Expert: Set the {@link MapRunnable} class for the job.
+   * 
+   * Typically used to exert greater control on {@link Mapper}s.
+   * 
+   * @param theClass the {@link MapRunnable} class for the job.
+   */
+  public void setGPUMapRunnerClass(Class<? extends MapRunnable> theClass) {
+	  setClass("mapred.map.runner.gpu.class", theClass, MapRunnable.class);
+  }
+  
   /**
    * Get the {@link Partitioner} used to partition {@link Mapper}-outputs 
    * to be sent to the {@link Reducer}s.

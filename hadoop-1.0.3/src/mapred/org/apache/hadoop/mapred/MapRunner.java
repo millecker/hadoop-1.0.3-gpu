@@ -15,11 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.mapred.pipes.Submitter;
 import org.apache.hadoop.util.ReflectionUtils;
 
 /** Default {@link MapRunnable} implementation.*/
@@ -35,10 +39,38 @@ public class MapRunner<K1, V1, K2, V2>
     //increment processed counter only if skipping feature is enabled
     this.incrProcCount = SkipBadRecords.getMapperMaxSkipRecords(job)>0 && 
       SkipBadRecords.getAutoIncrMapperProcCount(job);
+    
+    System.out.println("DEBUG: MapperClass: " + job.getMapperClass());
+    
   }
 
   public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
                   Reporter reporter)
+    throws IOException {
+    try {
+      System.out.println("MapRunner DEBUG: run started! Mapper: "+mapper);
+      // allocate key & value instances that are re-used for all entries
+      K1 key = input.createKey();
+      V1 value = input.createValue();
+      
+      while (input.next(key, value)) {
+        // map pair to output
+        mapper.map(key, value, output, reporter);
+        if(incrProcCount) {
+          reporter.incrCounter(SkipBadRecords.COUNTER_GROUP, 
+              SkipBadRecords.COUNTER_MAP_PROCESSED_RECORDS, 1);
+        }
+      }
+    } finally {
+      System.out.println("MapRunner DEBUG: Mapper: " + mapper);
+      mapper.close();
+    }
+  }
+
+/*
+  //for multi-GPU
+  public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
+                  Reporter reporter, int GPUDeviceId)
     throws IOException {
     try {
       // allocate key & value instances that are re-used for all entries
@@ -54,10 +86,11 @@ public class MapRunner<K1, V1, K2, V2>
         }
       }
     } finally {
+      System.out.println("MapRunner DEBUG: Mapper: " + mapper+" GPUDeviceId: "+GPUDeviceId); 
       mapper.close();
     }
   }
-
+  */
   protected Mapper<K1, V1, K2, V2> getMapper() {
     return mapper;
   }

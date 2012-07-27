@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
+
 package org.apache.hadoop.mapred;
 
 import java.io.DataInput;
@@ -42,6 +44,10 @@ public class TaskReport implements Writable {
   private Collection<TaskAttemptID> runningAttempts = 
     new ArrayList<TaskAttemptID>();
   private TaskAttemptID successfulAttempt = new TaskAttemptID();
+  
+  private boolean runOnGPU;
+  private int GPUDeviceId;
+  
   public TaskReport() {
     taskid = new TaskID();
   }
@@ -90,6 +96,25 @@ public class TaskReport implements Writable {
     this.counters = counters;
   }
     
+  
+  TaskReport(TaskID taskid, float progress, String state,
+		  String[] diagnostics, long startTime, long finishTime,
+		  Counters counters, boolean runOnGPU, int GPUDeviceId) {
+	  this(taskid, progress, state, diagnostics, startTime, finishTime, counters);
+	  this.runOnGPU = runOnGPU;
+	  this.GPUDeviceId = GPUDeviceId;
+  }
+  
+  TaskReport(TaskID taskid, float progress, String state,
+		  String[] diagnostics, TIPStatus currentStatus,
+		  long startTime, long finishTime,
+		  Counters counters, boolean runOnGPU, int GPUDeviceId) {
+	  this(taskid, progress, state, diagnostics, currentStatus, startTime, finishTime, counters);
+	  this.runOnGPU = runOnGPU;
+	  this.GPUDeviceId = GPUDeviceId;
+  }
+  
+    
   /** @deprecated use {@link #getTaskID()} instead */
   @Deprecated
   public String getTaskId() { return taskid.toString(); }
@@ -116,6 +141,22 @@ public class TaskReport implements Writable {
     return finishTime;
   }
 
+  public boolean getRunOnGPU() {
+	  return runOnGPU;
+  }
+  
+  public int getGPUDeviceId() {
+	  return GPUDeviceId;
+  }
+  
+  public void setRunOnGPU(boolean runOnGPU) {
+	  this.runOnGPU = runOnGPU;
+  }
+
+  public void setGPUDeviceId(int GPUDeviceId) {
+	  this.GPUDeviceId = GPUDeviceId;
+  }
+  
   /** 
    * set finish time of task. 
    * @param finishTime finish time of task. 
@@ -199,6 +240,8 @@ public class TaskReport implements Writable {
     Text.writeString(out, state);
     out.writeLong(startTime);
     out.writeLong(finishTime);
+    out.writeBoolean(runOnGPU);
+    out.writeInt(GPUDeviceId);
     WritableUtils.writeStringArray(out, diagnostics);
     counters.write(out);
     WritableUtils.writeEnum(out, currentStatus);
@@ -220,6 +263,8 @@ public class TaskReport implements Writable {
     this.state = Text.readString(in);
     this.startTime = in.readLong(); 
     this.finishTime = in.readLong();
+    this.runOnGPU = in.readBoolean();
+    this.GPUDeviceId = in.readInt();
     
     diagnostics = WritableUtils.readStringArray(in);
     counters = new Counters();

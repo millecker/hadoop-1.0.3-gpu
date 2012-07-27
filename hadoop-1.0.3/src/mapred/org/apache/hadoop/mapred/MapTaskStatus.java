@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
@@ -30,6 +31,21 @@ class MapTaskStatus extends TaskStatus {
           taskTracker, phase, counters);
   }
 
+  public MapTaskStatus(TaskAttemptID taskid, float progress, int numSlots,
+		  State runState, String diagnosticInfo, String stateString,
+		  String taskTracker, Phase phase, boolean runOnGPU, Counters counters) {
+	super(taskid, progress, numSlots, runState, diagnosticInfo, stateString, taskTracker, phase, counters);
+	this.setRunOnGPU(runOnGPU);
+  }  
+
+  public MapTaskStatus(TaskAttemptID taskid, float progress, int numSlots,
+		  State runState, String diagnosticInfo, String stateString,
+		  String taskTracker, Phase phase, boolean runOnGPU, int GPUDeviceId, Counters counters) {
+	super(taskid, progress, numSlots, runState, diagnosticInfo, stateString, taskTracker, phase, counters);
+	this.setRunOnGPU(runOnGPU);
+	this.setGPUDeviceId(GPUDeviceId);
+  }  
+  
   @Override
   public boolean getIsMap() {
     return true;

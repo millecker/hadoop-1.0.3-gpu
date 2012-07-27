@@ -15,15 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
+
 package org.apache.hadoop.mapred;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.io.*;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableFactories;
+import org.apache.hadoop.io.WritableFactory;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapred.TaskStatus.State;
-
-import java.io.*;
-import java.util.*;
 
 /**************************************************
  * A TaskTrackerStatus is a MapReduce primitive.  Keeps
@@ -51,9 +60,14 @@ public class TaskTrackerStatus implements Writable {
   List<TaskStatus> taskReports;
     
   volatile long lastSeen;
-  private int maxMapTasks;
+  //private int maxMapTasks;
+  private int maxCPUMapSlots;
+  private int maxGPUMapSlots;
   private int maxReduceTasks;
   private TaskTrackerHealthStatus healthStatus;
+//List<Boolean> availableGPUDevices;
+//private boolean availableGPUDevices[];
+//private boolean availableGPUDevices[] = new boolean[maxGPUMapTasks]; 
    
   public static final int UNAVAILABLE = -1;
   /**
@@ -357,7 +371,7 @@ public class TaskTrackerStatus implements Writable {
    */
   public TaskTrackerStatus(String trackerName, String host, 
                            int httpPort, List<TaskStatus> taskReports, 
-                           int failures, int maxMapTasks,
+                           int failures, int maxCPUMapSlots,
                            int maxReduceTasks) {
     this.trackerName = trackerName;
     this.host = host;
@@ -365,10 +379,28 @@ public class TaskTrackerStatus implements Writable {
 
     this.taskReports = new ArrayList<TaskStatus>(taskReports);
     this.failures = failures;
-    this.maxMapTasks = maxMapTasks;
+    this.maxCPUMapSlots = maxCPUMapSlots;
+    this.maxGPUMapSlots = 0;
+//    this.availableGPUDevices = new boolean[maxGPUMapTasks];
+//    for(int i = 0; i < maxGPUMapTasks; i++) {
+//    	this.availableGPUDevices[i] = true;
+//    }
     this.maxReduceTasks = maxReduceTasks;
     this.resStatus = new ResourceStatus();
     this.healthStatus = new TaskTrackerHealthStatus();
+  }
+
+  
+  public TaskTrackerStatus(String trackerName, String host,
+			 			   int httpPort, List<TaskStatus> taskReports,
+			 			   int failures, 
+			 			   int maxCPUMapSlots, int maxGPUMapSlots,
+			 			   int maxReduceTasks) {
+
+	  this(trackerName, host, httpPort, taskReports, failures, 
+			  maxCPUMapSlots, maxReduceTasks);
+	  
+	  this.maxGPUMapSlots = maxGPUMapSlots;  	
   }
 
   /**
@@ -420,6 +452,39 @@ public class TaskTrackerStatus implements Writable {
             taskStatus.inTaskCleanupPhase());
   }
   
+//
+///**
+// * Return the finished CPUMapTask count
+// */
+//public int countFinishedCPUMapTasks() {
+//  int mapCount = 0;
+//  for (Iterator it = taskReports.iterator(); it.hasNext();) {
+//    TaskStatus ts = (TaskStatus) it.next();
+//    TaskStatus.State state = ts.getRunState();
+//    if (ts.getIsMap() && ts.runOnCPU() &&
+//        ((state == TaskStatus.State.SUCCEEDED))) {
+//      mapCount++;
+//    }
+//  }
+//  return mapCount;
+//}
+//
+///**
+// * Return the finished GPUMapTask count
+// */
+//public int countFinishedGPUMapTasks() {
+//  int mapCount = 0;
+//  for (Iterator it = taskReports.iterator(); it.hasNext();) {
+//    TaskStatus ts = (TaskStatus) it.next();
+//    TaskStatus.State state = ts.getRunState();
+//    if (ts.getIsMap() && ts.runOnGPU() &&
+//        ((state == TaskStatus.State.SUCCEEDED))) {
+//      mapCount++;
+//    }
+//  }
+//  return mapCount;
+//}  
+  
   /**
    * Get the number of running map tasks.
    * @return the number of running map tasks
@@ -433,6 +498,58 @@ public class TaskTrackerStatus implements Writable {
     }
     return mapCount;
   }
+
+  /**
+  * Return the current MapTask count running on CPU 
+  */
+  public int countCPUMapTasks() {
+ 	int mapCount = 0;
+ 	for (TaskStatus ts : taskReports) {
+ 		TaskStatus.State state = ts.getRunState();
+ 		if (ts.getIsMap() && ts.runOnCPU() &&
+ 			  ((state == TaskStatus.State.RUNNING) ||
+ 			   (state == TaskStatus.State.UNASSIGNED) ||
+ 			    ts.inTaskCleanupPhase())){
+ 			mapCount++;
+ 		}
+ 	}
+ 	return mapCount;
+  }
+ 
+  /**
+  * Return the current MapTask count running on GPU 
+  */
+  public int countGPUMapTasks() {
+ 	int mapCount = 0;
+ 	for (TaskStatus ts : taskReports) {
+ 		TaskStatus.State state = ts.getRunState();
+ 		if (ts.getIsMap() && ts.runOnGPU() &&
+ 				((state == TaskStatus.State.RUNNING) ||
+ 				 (state == TaskStatus.State.UNASSIGNED) || 
+ 				  ts.inTaskCleanupPhase())) {
+ 			mapCount++;
+ 		}
+ 	}
+ 	return mapCount;
+  }
+
+ public boolean[] availableGPUDevices() {
+	  boolean[] availableGPUDevices = new boolean[maxGPUMapSlots];
+	  for(int i = 0; i < maxGPUMapSlots; i++) {
+		  availableGPUDevices[i] = true;
+	  }
+	  for (TaskStatus ts : taskReports) {
+		  TaskStatus.State state = ts.getRunState();
+		  if (ts.getIsMap() && ts.runOnGPU() &&
+				  ((state == TaskStatus.State.RUNNING) ||
+				   (state == TaskStatus.State.UNASSIGNED) || 
+	  				  ts.inTaskCleanupPhase())) {
+			  availableGPUDevices[ts.GPUDeviceId()] = false;
+		  } 
+	  }
+	  return availableGPUDevices;
+ }
+ 
 
   /**
    * Get the number of occupied map slots.
@@ -449,11 +566,48 @@ public class TaskTrackerStatus implements Writable {
   }
   
   /**
+   * Get the number of occupied map slots on CPU
+   * @return the number of occupied map slots on CPU
+   */
+ public int countOccupiedCPUMapSlots() {
+	int cpuMapSlotsCount = 0;
+	for (TaskStatus ts : taskReports) {
+		if (ts.getIsMap() && ts.runOnCPU() && isTaskRunning(ts)) {
+			cpuMapSlotsCount += ts.getNumSlots();
+		}
+	}
+	return cpuMapSlotsCount;
+ }
+
+ /**
+ * Get the number of occupied map slots on GPU
+ * @return the number of occupied map slots on GPU
+ */
+ public int countOccupiedGPUMapSlots() {
+	int gpuMapSlotsCount = 0;
+	for (TaskStatus ts : taskReports) {
+		if (ts.getIsMap() && ts.runOnGPU() && isTaskRunning(ts)) {
+			gpuMapSlotsCount += ts.getNumSlots();
+		}
+	}
+	return gpuMapSlotsCount;
+ }
+  
+  
+  /**
    * Get available map slots.
    * @return available map slots
    */
   public int getAvailableMapSlots() {
     return getMaxMapSlots() - countOccupiedMapSlots();
+  }
+  
+  /**
+   * Get available map slots on CPU
+   * @return available map slots
+   */
+  public int getAvailableCPUMapSlots() {
+    return getMaxCPUMapSlots() - countOccupiedMapSlots();
   }
   
   /**
@@ -505,11 +659,27 @@ public class TaskTrackerStatus implements Writable {
   }
 
   /**
-   * Get the maximum map slots for this node.
-   * @return the maximum map slots for this node
+   * Get the maximum map slots for this node. (CPU+GPU)
+   * @return the maximum map slots for this node (CPU+GPU)
    */
   public int getMaxMapSlots() {
-    return maxMapTasks;
+    return maxCPUMapSlots + maxGPUMapSlots;
+  }
+  
+  /**
+   * Get the maximum CPU map slots for this node.
+   * @return the maximum CPU map slots for this node
+   */
+  public int getMaxCPUMapSlots() {
+	return maxCPUMapSlots;
+  }
+	  
+  /**
+   * Get the maximum GPU map slots for this node.
+   * @return the maximum GPU map slots for this node
+   */
+  public int getMaxGPUMapSlots() {
+	return maxGPUMapSlots;
   }
   
   /**
@@ -653,7 +823,12 @@ public class TaskTrackerStatus implements Writable {
     Text.writeString(out, host);
     out.writeInt(httpPort);
     out.writeInt(failures);
-    out.writeInt(maxMapTasks);
+    out.writeInt(maxCPUMapSlots);
+    out.writeInt(maxGPUMapSlots);
+//    for(int i = 0; i < 0; i++) { 
+//    	out.writeBoolean(availableGPUDevices[i]);
+//    }
+//    out.writeInt(maxMapTasks);
     out.writeInt(maxReduceTasks);
     resStatus.write(out);
     out.writeInt(taskReports.size());
@@ -669,7 +844,15 @@ public class TaskTrackerStatus implements Writable {
     this.host = Text.readString(in);
     this.httpPort = in.readInt();
     this.failures = in.readInt();
-    this.maxMapTasks = in.readInt();
+    this.maxCPUMapSlots = in.readInt();
+    this.maxGPUMapSlots = in.readInt();    
+//    for(int i = 0; i < 0; i++) {
+//    	if(this.availableGPUDevices != null) {
+//    		this.availableGPUDevices[i] = in.readBoolean();
+//    	}
+//    }
+    //this.maxMapTasks = maxCPUMapTasks + maxGPUMapTasks;
+    //this.maxMapTasks = in.readInt();
     this.maxReduceTasks = in.readInt();
     resStatus.readFields(in);
     taskReports.clear();

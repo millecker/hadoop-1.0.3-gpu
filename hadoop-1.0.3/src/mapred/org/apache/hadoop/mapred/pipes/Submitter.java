@@ -323,7 +323,7 @@ public class Submitter extends Configured implements Tool {
       conf.setInputFormat(PipesNonJavaInputFormat.class);
     }
     
-    conf.setInputFormat(NLineInputFormat.class);
+    //conf.setInputFormat(NLineInputFormat.class);
     LOG.info("DEBUG: InputFormat: " + conf.getInputFormat());
 	
     //String exec = getExecutable(conf);

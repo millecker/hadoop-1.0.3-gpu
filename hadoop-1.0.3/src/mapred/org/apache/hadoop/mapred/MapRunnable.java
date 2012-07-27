@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
@@ -45,4 +46,11 @@ public interface MapRunnable<K1, V1, K2, V2>
   void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
            Reporter reporter)
     throws IOException;
+
+  // for multi-GPU
+  /*
+  void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
+			Reporter reporter, int GPUDeviceId) 
+	throws IOException;
+	*/
 }

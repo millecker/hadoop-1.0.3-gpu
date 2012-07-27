@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
+
 package org.apache.hadoop.mapred;
 
 
@@ -31,8 +33,8 @@ import java.util.TreeSet;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.mapred.SortedRanges.Range;
-import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitMetaInfo;
 import org.apache.hadoop.mapreduce.TaskType;
+import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitMetaInfo;
 import org.apache.hadoop.net.Node;
 
 
@@ -497,7 +499,14 @@ class TaskInProgress {
     TaskReport report = new TaskReport
       (getTIPId(), (float)progress, state,
        diagnostics.toArray(new String[diagnostics.size()]),
-       currentStatus, execStartTime, execFinishTime, counters);
+//       currentStatus, execStartTime, execFinishTime, counters);
+       currentStatus, execStartTime, execFinishTime, counters, false, 0); 
+    
+    if(firstTaskId != null && jobtracker != null && jobtracker.getTaskStatus(firstTaskId) != null) {
+    	LOG.info("DEBUG jobtracker.getTaskStatus(firstTaskId): " + jobtracker.getTaskStatus(firstTaskId).runOnGPU());
+    	report.setRunOnGPU(jobtracker.getTaskStatus(firstTaskId).runOnGPU());
+    }
+    
     if (currentStatus == TIPStatus.RUNNING) {
       report.setRunningTaskAttempts(activeTasks.keySet());
     } else if (currentStatus == TIPStatus.COMPLETE) {

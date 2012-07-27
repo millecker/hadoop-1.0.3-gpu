@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
@@ -48,12 +49,11 @@ import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.io.serializer.Deserializer;
@@ -62,13 +62,8 @@ import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.mapred.IFile.Writer;
 import org.apache.hadoop.mapred.Merger.Segment;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapreduce.split.JobSplit;
-import org.apache.hadoop.mapreduce.split.JobSplit.SplitMetaInfo;
-import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitIndex;
-import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitMetaInfo;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitIndex;
 import org.apache.hadoop.util.IndexedSortable;
 import org.apache.hadoop.util.IndexedSorter;
 import org.apache.hadoop.util.Progress;
@@ -204,6 +199,7 @@ class MapTask extends Task {
     }
 
     public K createKey() {
+      LOG.info("DEBUG createKey: " + rawIn);
       return rawIn.createKey();
     }
       
@@ -409,6 +405,9 @@ class MapTask extends Task {
                     TaskReporter reporter
                     ) throws IOException, InterruptedException,
                              ClassNotFoundException {
+	    
+	LOG.info("DEBUG: runOldMapper...");
+	    
     InputSplit inputSplit = getSplitDetails(new Path(splitIndex.getSplitLocation()),
            splitIndex.getStartOffset());
 
@@ -429,11 +428,28 @@ class MapTask extends Task {
     } else { 
       collector = new DirectMapOutputCollector(umbilical, job, reporter);
     }
-    MapRunnable<INKEY,INVALUE,OUTKEY,OUTVALUE> runner =
-      ReflectionUtils.newInstance(job.getMapRunnerClass(), job);
+//    MapRunnable<INKEY,INVALUE,OUTKEY,OUTVALUE> runner =
+//      ReflectionUtils.newInstance(job.getMapRunnerClass(), job);
+    MapRunnable<INKEY,INVALUE,OUTKEY,OUTVALUE> runner = null;
+    if (runOnGPU) {
+    	runner = ReflectionUtils.newInstance(job.getGPUMapRunnerClass(), job);
+    } else {
+    	runner = ReflectionUtils.newInstance(job.getMapRunnerClass(), job);
+    }
 
+    LOG.info("DEBUG: runOnGPU: "+runOnGPU+" Runner created: "+runner.getClass().getName());
+    
     try {
-      runner.run(in, new OldOutputCollector(collector, conf), reporter);
+        long time = System.currentTimeMillis();
+        LOG.info("DEBUG: MapTask before MapRunner invocation.");
+        
+        //if (!runOnGPU)
+        	runner.run(in, new OldOutputCollector(collector, conf), reporter);
+        //else //run on GPU
+        //	runner.run(in, new OldOutputCollector(collector, conf), reporter, this.GPUDeviceId());
+        
+        LOG.info("DEBUG: MapTask - PipesMapRunner.run : " + (System.currentTimeMillis() - time));
+     
       collector.flush();
     } finally {
       //close
