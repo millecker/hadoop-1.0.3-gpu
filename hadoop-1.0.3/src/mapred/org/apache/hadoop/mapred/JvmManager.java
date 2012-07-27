@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
@@ -31,10 +30,14 @@ import java.util.Vector;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.CleanupQueue.PathDeletionContext;
 import org.apache.hadoop.mapred.TaskTracker.TaskInProgress;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.server.tasktracker.JVMInfo;
 import org.apache.hadoop.mapreduce.server.tasktracker.userlogs.JvmFinishedEvent;
+import org.apache.hadoop.util.ProcessTree;
 import org.apache.hadoop.util.ProcessTree.Signal;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
 
@@ -377,9 +380,7 @@ class JvmManager {
           LOG.info("Killing JVM: " + runnerToKill.jvmId);
           killJvmRunner(runnerToKill);
         }
-        long time = System.currentTimeMillis();
         spawnNewJvm(jobId, env, t);
-        LOG.info("spawnNewJVM " + (System.currentTimeMillis() - time));
         return;
       }
       //*MUST* never reach this
@@ -467,9 +468,7 @@ class JvmManager {
       @Override
       public void run() {
         try {
-          long time = System.currentTimeMillis();
           runChild(env);
-          LOG.info("runChild " + isMap + " " + (System.currentTimeMillis() - time));
         } catch (InterruptedException ie) {
           return;
         } catch (IOException e) {

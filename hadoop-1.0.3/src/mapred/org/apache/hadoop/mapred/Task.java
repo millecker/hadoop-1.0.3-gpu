@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** MODIFIED FOR GPGPU Usage! **/
 
 package org.apache.hadoop.mapred;
 
@@ -38,9 +37,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.Text;
@@ -57,6 +56,7 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.ResourceCalculatorPlugin;
 import org.apache.hadoop.util.ResourceCalculatorPlugin.ProcResourceValues;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.fs.FSDataInputStream;
 
 /** 
  * Base class for tasks.
@@ -166,9 +166,6 @@ abstract public class Task implements Writable, Configurable {
   protected SecretKey tokenSecret;
   protected JvmContext jvmContext;
 
-  protected boolean runOnGPU = false;
-  protected int GPUDeviceId = 0;
-  
   ////////////////////////////////////////////
   // Constructors
   ////////////////////////////////////////////
@@ -200,12 +197,6 @@ abstract public class Task implements Writable, Configurable {
   ////////////////////////////////////////////
   // Accessors
   ////////////////////////////////////////////
-  public void setRunOnGPU(boolean runOnGPU) { this.runOnGPU = runOnGPU; };
-  public void setGPUDeviceId(int GPUDeviceId) { this.GPUDeviceId = GPUDeviceId; };
-  public boolean runOnCPU() { return !this.runOnGPU; };
-  public boolean runOnGPU() { return this.runOnGPU; };
-  public int GPUDeviceId() { return this.GPUDeviceId; };
-  
   public void setJobFile(String jobFile) { this.jobFile = jobFile; }
   public String getJobFile() { return jobFile; }
   public TaskAttemptID getTaskID() { return taskId; }
@@ -435,8 +426,6 @@ abstract public class Task implements Writable, Configurable {
     out.writeBoolean(jobSetup);
     out.writeBoolean(writeSkipRecs);
     out.writeBoolean(taskCleanup); 
-    out.writeBoolean(runOnGPU);
-    out.writeInt(GPUDeviceId);
     Text.writeString(out, user);
   }
   
@@ -461,8 +450,6 @@ abstract public class Task implements Writable, Configurable {
     if (taskCleanup) {
       setPhase(TaskStatus.Phase.CLEANUP);
     }
-    runOnGPU = in.readBoolean();
-    GPUDeviceId = in.readInt();
     user = Text.readString(in);
   }
 

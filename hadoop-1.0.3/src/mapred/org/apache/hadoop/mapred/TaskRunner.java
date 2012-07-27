@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** MODIFIED FOR GPGPU Usage! **/
-
 package org.apache.hadoop.mapred;
 
 import java.io.ByteArrayOutputStream;
@@ -29,21 +27,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Vector;
+import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.filecache.TaskDistributedCacheManager;
 import org.apache.hadoop.filecache.TrackerDistributedCacheManager;
+import org.apache.hadoop.mapreduce.security.TokenCache;
+import org.apache.hadoop.mapreduce.server.tasktracker.Localizer;
 import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
@@ -290,12 +289,8 @@ abstract class TaskRunner extends Thread {
   void launchJvmAndWait(List <String> setup, Vector<String> vargs, File stdout,
       File stderr, long logSize, File workDir)
       throws InterruptedException, IOException {
-	
-	long time = System.currentTimeMillis();
     jvmManager.launchJvm(this, jvmManager.constructJvmEnv(setup, vargs, stdout,
         stderr, logSize, workDir, conf));
-    LOG.info("JVMLaunchingTime : " + t.isMapTask() + " " + (System.currentTimeMillis() - time));
-    
     synchronized (lock) {
       while (!done) {
         lock.wait();
