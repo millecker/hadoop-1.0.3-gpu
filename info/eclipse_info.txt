@@ -1,0 +1,7 @@
+Eclipse Metadata
+
+Launch Configurations
+eclipse_metadata_launches should be stored in {WORKSPACE}/.metadata/.plugins/org.eclipse.debug.core/.launches/
+
+Bookmarks 
+eclipse_metadata_bookmarks should be stored in {WORKSPACE}/.metadata/.plugins/org.eclipse.core.resources/.projects/hadoop-1.0.3-gpu/
