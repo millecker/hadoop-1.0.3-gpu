@@ -112,7 +112,7 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
           Class<? extends V2> outputValueClass,
           boolean runOnGPU
   ) throws IOException, InterruptedException {
-	  this(conf, recordReader, output, reporter, outputKeyClass, outputValueClass, false, 0);
+	  this(conf, recordReader, output, reporter, outputKeyClass, outputValueClass, runOnGPU, 0);
   }
   
   /**
@@ -159,8 +159,16 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
       cmd.add(interpretor);
     }
 
-    // Check whether the applicaiton will run on GPU and take right executable
-    String executable = DistributedCache.getLocalCacheFiles(conf)[(runOnGPU)?1:0].toString();
+    // Check whether the applicaton will run on GPU and take right executable
+    String executable = null;
+    try {
+    	executable = DistributedCache.getLocalCacheFiles(conf)[(runOnGPU)?1:0].toString();
+    } catch (Exception e){
+    	//if executable (GPU) missing?
+        LOG.info("ERROR: "+((Integer.parseInt(e.getMessage())==1)?"GPU ":"CPU")+" executable is missing!");
+        throw new IOException(((Integer.parseInt(e.getMessage())==1)?"GPU":"CPU")+" executable is missing!");
+    }
+    
     if (!new File(executable).canExecute()) {
       // LinuxTaskController sets +x permissions on all distcache files already.
       // In case of DefaultTaskController, set permissions here.

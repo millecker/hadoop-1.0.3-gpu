@@ -107,7 +107,7 @@ public class Submitter extends Configured implements Tool {
    * @param executable The URI of the application's executable.
    */
   public static void setGPUExecutable(JobConf conf, String executable) {
-	conf.set("hadoop.pipes.executable.gpu", executable);
+	conf.set("hadoop.pipes.gpu.executable", executable);
   }	
   
   /**
@@ -116,7 +116,7 @@ public class Submitter extends Configured implements Tool {
    * @return the URI where the application's executable is located
    */
   public static String getGPUExecutable(JobConf conf) {
-	  return conf.get("hadoop.pipes.executable.gpu");
+	  return conf.get("hadoop.pipes.gpu.executable");
   }
 		
 

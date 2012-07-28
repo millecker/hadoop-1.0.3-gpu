@@ -108,6 +108,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
     final int trackerRunningMaps = taskTrackerStatus.countMapTasks();
     final int trackerRunningReduces = taskTrackerStatus.countReduceTasks();
 
+    LOG.info("DEBUG ************* assignTasks started!!!");
     LOG.info("DEBUG trackerMapCapacity : " + trackerMapCapacity);
     LOG.info("DEBUG trackerCPUMapCapacity : " + trackerCPUMapCapacity);
     LOG.info("DEBUG trackerGPUMapCapacity : " + trackerGPUMapCapacity);
@@ -141,21 +142,21 @@ class JobQueueTaskScheduler extends TaskScheduler {
           finishedGPUMapTasks += job.finishedGPUMaps();
           cpuMapTaskMeanTime = job.getCPUMapTaskMeanTime();
           gpuMapTaskMeanTime = job.getGPUMapTaskMeanTime();
-          LOG.info("job.desiredMaps : " + job.desiredMaps());
-          LOG.info("job.finishedMaps : " + job.finishedMaps());
-          LOG.info("job.maptaskmeantime : " + job.getMapTaskMeanTime());
-          LOG.info("job.CPUmaptaskmeantime : " + job.getCPUMapTaskMeanTime());
-          LOG.info("job.GPUmaptaskmeantime : " + job.getGPUMapTaskMeanTime());
+          LOG.info("DEBUG: job.desiredMaps : " + job.desiredMaps());
+          LOG.info("DEBUG: job.finishedMaps : " + job.finishedMaps());
+          LOG.info("DEBUG: job.maptaskmeantime : " + job.getMapTaskMeanTime());
+          LOG.info("DEBUG: job.CPUmaptaskmeantime : " + job.getCPUMapTaskMeanTime());
+          LOG.info("DEBUG: job.GPUmaptaskmeantime : " + job.getGPUMapTaskMeanTime());
           int i = 0;
           Iterator<Long> it = job.getCPUMapTaskTimes().iterator();
           while(it.hasNext()) {
-        	  LOG.info("CPU : " +  i + " : " + it.next().longValue());
+        	  LOG.info("DEBUG: CPU : " +  i + " : " + it.next().longValue());
         	  i++;
           }
           i = 0;
           Iterator<Long> it_gpu = job.getGPUMapTaskTimes().iterator();
           while(it_gpu.hasNext()) {
-        	  LOG.info("GPU : " + i + " : " + it_gpu.next().longValue());
+        	  LOG.info("DEBUG: GPU : " + i + " : " + it_gpu.next().longValue());
         	  i++;
           }
           
@@ -167,14 +168,14 @@ class JobQueueTaskScheduler extends TaskScheduler {
       }
     }
 
-	LOG.info("finishedCPUMaps : " + finishedCPUMapTasks);
-  	LOG.info("finishedGPUMaps : " + finishedGPUMapTasks);
-    LOG.info("reminingMapLoad : " + remainingMapLoad);
-    LOG.info("pendingMapLoad : " + pendingMapLoad);
+	LOG.info("DEBUG: finishedCPUMaps : " + finishedCPUMapTasks);
+  	LOG.info("DEBUG: finishedGPUMaps : " + finishedGPUMapTasks);
+    LOG.info("DEBUG: reminingMapLoad : " + remainingMapLoad);
+    LOG.info("DEBUG: pendingMapLoad : " + pendingMapLoad);
   	double accelarationFactor =
   		(cpuMapTaskMeanTime == 0 || gpuMapTaskMeanTime == 0) ? 0.0
   				: (double)cpuMapTaskMeanTime / (double)gpuMapTaskMeanTime;
-  	LOG.info("accelarationfactor : " + accelarationFactor);
+  	LOG.info("DEBUG: accelarationfactor : " + accelarationFactor);
   	  	
   	//apply scheduling algorithm to MapTasks
   	/*
@@ -256,7 +257,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
     int availableCPUMapSlots = trackerCPUMapCapacity - trackerRunningCPUMaps;
     int availableGPUMapSlots = trackerGPUMapCapacity - trackerRunningGPUMaps;
     boolean[] availableGPUDevices = taskTrackerStatus.availableGPUDevices();
-    LOG.info("GPUDevices: " + availableGPUDevices.length);
+    LOG.info("DEBUG: GPUDevices: " + availableGPUDevices.length);
     
     boolean exceededMapPadding = false;
     
@@ -274,7 +275,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
     LOG.info("DEBUG availableGPUMapSlots : " + availableGPUMapSlots);
     LOG.info("DEBUG availableGPUDevices : ");    
     for(int i = 0; i < trackerGPUMapCapacity; i++) {
-    	LOG.info(i + " : " + availableGPUDevices[i]);
+    	LOG.info("DEBUG availableGPUDevices["+i+"]: "+ i + " : " + availableGPUDevices[i]);
     }
 
     //    LOG.info("XXXX numTaskTrackers : " + numTaskTrackers);
@@ -282,12 +283,14 @@ class JobQueueTaskScheduler extends TaskScheduler {
     //check if assign to CPU or not in aspect of scheduring algorithm
 //    LOG.info("XXXX a * t * n : " + (accelarationFactor * trackerGPUMapCapacity * numTaskTrackers));
     
-    LOG.info("DEBUG OptionalScheduling ; " + isOptionalScheduling);
+    LOG.info("DEBUG OptionalScheduling: " + isOptionalScheduling);
 //    if(isOptionalScheduling) {
 //        if(Math.max(pendingMapLoad, 0) >= accelarationFactor * trackerGPUMapCapacity * numTaskTrackers) {
+    
     if(!(isOptionalScheduling &&
     		Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers)){
-    	LOG.info("try to assign to CPU");
+    	
+    	LOG.info("DEBUG: ************* try to assign to CPU");
     	
     	scheduleCPUMaps:
     	for (int i = 0; i < availableCPUMapSlots; ++i) {
@@ -306,7 +309,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
        				if (t != null) {
        					assignedTasks.add(t);
        					++numLocalMaps;
-       					LOG.info("assign to CPU");
+       					LOG.info("DEBUG: ************* assign to CPU");
        					break;
        				}
        				
@@ -315,7 +318,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
        				if (t != null) {
        					assignedTasks.add(t);
        					++numNonLocalMaps;
-       					LOG.info("assign to CPU");
+       					LOG.info("DEBUG: ************* assign to CPU");
        					break scheduleCPUMaps;
        				}
     			}
@@ -323,9 +326,10 @@ class JobQueueTaskScheduler extends TaskScheduler {
     	}
     }
     else{
-    	LOG.info("DO NOT try to assign to CPU");
+    	LOG.info("DEBUG: DO NOT try to assign to CPU");
     }
           
+    LOG.info("DEBUG: ************* try to assign to GPU");
     
     scheduleGPUMaps:
    	for (int i = 0; i < availableGPUMapSlots; ++i) {
@@ -335,8 +339,15 @@ class JobQueueTaskScheduler extends TaskScheduler {
    					continue;
    				}
    				
-   				Task t = null;
-          			
+				if (job.getJobConf().get("hadoop.pipes.gpu.executable",null)==null){
+					LOG.info("DEBUG: GPU executable is not set! --> cannot assign to GPU! ");
+		   			LOG.info("DEBUG: hadoop.pipes.executable: "+job.getJobConf().get("hadoop.pipes.executable",null));
+					LOG.info("DEBUG: hadoop.pipes.gpu.executable: "+job.getJobConf().get("hadoop.pipes.gpu.executable",null));
+					break;
+				}
+				
+				Task t = null;
+   				// NewNodeLocalMapTask
    				t = job.obtainNewNodeLocalMapTask(taskTrackerStatus, numTaskTrackers, 
    						taskTrackerManager.getNumberOfUniqueHosts());
    				if (t != null) {
@@ -350,10 +361,11 @@ class JobQueueTaskScheduler extends TaskScheduler {
    					}
    					assignedTasks.add(t);
    					++numLocalMaps;
-   					LOG.info("assign to GPU");
+   					LOG.info("DEBUG: ************* assign to GPU");
    					break;
    				}
    				
+   				// NewNonLocalMapTask
    				t = job.obtainNewNonLocalMapTask(taskTrackerStatus, numTaskTrackers, 
    						taskTrackerManager.getNumberOfUniqueHosts());
    				if (t != null) {
@@ -367,7 +379,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
    					}
    					assignedTasks.add(t);
    					++numNonLocalMaps;
-   					LOG.info("assign to GPU");
+   					LOG.info("DEBUG: ************* assign to GPU");
    					break scheduleGPUMaps;
    				}
    			}

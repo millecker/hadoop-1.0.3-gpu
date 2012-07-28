@@ -61,8 +61,10 @@ public class PipesGPUMapRunner<K1 extends WritableComparable, V1 extends Writabl
    * @param GPUDeviceId GPUDeviceId for execution on GPUDevice
    */
   @SuppressWarnings("unchecked")
+  //public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
+  //                Reporter reporter, int GPUDeviceId) throws IOException {
   public void run(RecordReader<K1, V1> input, OutputCollector<K2, V2> output,
-                  Reporter reporter, int GPUDeviceId) throws IOException {
+              Reporter reporter) throws IOException {
     Application<K1, V1, K2, V2> application = null;
     try {
       RecordReader<FloatWritable, NullWritable> fakeInput = 
@@ -73,8 +75,8 @@ public class PipesGPUMapRunner<K1 extends WritableComparable, V1 extends Writabl
                                                     reporter,
           (Class<? extends K2>) job.getOutputKeyClass(), 
           (Class<? extends V2>) job.getOutputValueClass(),
-          true, //runOnGPU
-          GPUDeviceId);
+          true); //, //runOnGPU
+         // GPUDeviceId);
     } catch (InterruptedException ie) {
       throw new RuntimeException("interrupted", ie);
     }
