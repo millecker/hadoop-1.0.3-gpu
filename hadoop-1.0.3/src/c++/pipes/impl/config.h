@@ -84,7 +84,7 @@
 #define STDC_HEADERS 1
 
 /* Define to 1 if strerror_r returns char *. */
-/* #undef STRERROR_R_CHAR_P */
+#define STRERROR_R_CHAR_P 1
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
